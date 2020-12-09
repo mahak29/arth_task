@@ -1,0 +1,62 @@
+- hosts: all
+  tasks:
+  - name: Appstream
+    yum_repository: 
+                name: dvd1
+                description: Appstream repo
+                baseurl: file:///dvd/AppStream
+                gpgcheck: no
+
+  - name: BaseOs
+    yum_repository:
+                    name: dvd2
+                    description: BaseOS repo
+                    baseurl: file:///dvd/BaseOS
+                    gpgcheck: no
+
+
+  - name: Docker
+    yum_repository:
+                    name: docker
+                    description: Docker repo
+                    baseurl: https://download.docker.com/linux/centos/7/x86_64/stable/
+                    gpgcheck: no
+
+
+
+
+  - command:
+          cmd: "yum install docker-ce --nobest -y"
+  
+  - pip: 
+          name: docker-py
+          state: present  
+
+  - service:
+                     name: docker
+                     state: started
+                     enabled: yes
+
+  
+
+  - name: pull httpd image
+    docker_image:
+                      name: httpd
+                      source: pull
+
+
+  - name: copy files to html folder
+    copy:
+                     src: /root/a.html
+                     dest: /mahi
+  - name: launching httpd container
+    docker_container:
+                     name: http_os
+                     image: httpd
+                     state: started
+                     ports: "8082:80"
+                     volumes:
+                             - "/mahi:/usr/local/apache2/htdocs/"
+                     detach: true 
+
+
