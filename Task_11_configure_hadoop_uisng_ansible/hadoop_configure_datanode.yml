@@ -1,0 +1,106 @@
+
+- hosts: datanode
+  vars:
+          data_folder_name: "/dn1"
+  tasks:
+ 
+
+  - name: "Check if hadoop software already exist or not"
+    stat: 
+     path: "/root/hadoop-1.2.1-1.x86_64.rpm"
+    register: check_hadoop_presence
+    
+
+  - name: "Copying hadoop software"
+    copy:
+            dest: "/root/"
+            src: "/root/hadoop-1.2.1-1.x86_64.rpm"
+    when: not check_hadoop_presence.stat.exists
+            
+
+  - name: "Check if jdk software already exist or not"
+    stat: 
+     path: "/root/jdk-8u171-linux-x64.rpm"
+    register: check_jdk_presence
+
+  - name: "Copying jdk software"
+    copy:
+            dest: "/root"
+            src: "/root/jdk-8u171-linux-x64.rpm"
+
+    when: not check_jdk_presence.stat.exists
+
+  - name: " Check java version"
+    shell: "java -version"
+    register: check_java_data
+    ignore_errors: true
+
+  - name: "Installing jdk"
+    shell: "rpm -ih jdk-8u171-linux-x64.rpm"
+    when: check_java_data.rc > 0 
+
+
+  - name: " Check hadoop version"
+    shell: "hadoop version"
+    register: check_hadoop_data
+    ignore_errors: true
+
+  - name: "Installing hadoop"
+    shell: "rpm -ih hadoop-1.2.1-1.x86_64.rpm --force"
+    when: "check_hadoop_data.rc > 0"
+
+  - name: "Check if folder  already exist or not"
+    stat: 
+     path: "{{ data_folder_name }}"
+    register: check_folder
+
+  - name: "Make directory for datanode"
+    file:
+            path: "{{ data_folder_name }}"
+            state: directory
+    when: not check_folder.stat.exists
+
+  - name: "Configure hdfs-site.xml file"
+    template:
+            src: "hdfs_data.xml"
+            dest: "/etc/hadoop/hdfs-site.xml"
+            
+    
+  - name: "Configure core-site.xml file"
+    template:
+            dest: "/etc/hadoop/core-site.xml"
+            src: "core_data.xml"
+
+  - name: "jps command"
+    command: "jps"
+    register: jps_check_data
+
+  - name: "Starting hadoop service"
+    command: "hadoop-daemon.sh start datanode"
+    ignore_errors: true
+    when:  jps_check_data.stdout_lines[0][1]
+    register: hadoop_service
+
+  - name: "Check hadoop service status"
+    command: "hadoop-daemon.sh start datanode"
+    ignore_errors: true
+    when: hadoop_service.changed == false
+
+  - debug:
+          var: hadoop_service
+
+
+  - name: "jps command"
+    command: "jps"
+    register: jps_check_data1
+
+  - debug:
+        var: jps_check_data1
+
+  - name: "Checking connectivity b/w namenode and datanode"
+    command: "hadoop dfsadmin -report"
+    register: hadoop_report
+
+  - debug:
+          var: hadoop_report
+

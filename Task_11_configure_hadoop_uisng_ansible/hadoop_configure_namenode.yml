@@ -1,0 +1,83 @@
+- hosts: namenode
+  vars:
+         name_folder_name: "/nn1"
+  tasks:
+ 
+
+  - name: "Check if hadoop software already exist or not"
+    stat: 
+     path: "/root/hadoop-1.2.1-1.x86_64.rpm"
+    register: check_hadoop_presence
+    
+
+  - name: "Copying hadoop software"
+    copy:
+            dest: "/root/"
+            src: "/root/hadoop-1.2.1-1.x86_64.rpm"
+    when: not check_hadoop_presence.stat.exists
+            
+
+  - name: "Check if jdk software already exist or not"
+    stat: 
+     path: "/root/jdk-8u171-linux-x64.rpm"
+    register: check_jdk_presence
+
+  - name: "Copying jdk software"
+    copy:
+            dest: "/root"
+            src: "/root/jdk-8u171-linux-x64.rpm"
+
+    when: not check_jdk_presence.stat.exists
+
+  - name: " Check java version"
+    shell: "java -version"
+    register: check_java
+    changed_when: False
+
+  - name: "Installing jdk"
+    shell: "rpm -ih jdk-8u171-linux-x64.rpm"
+    when: "check_java.rc > 0" 
+
+  - name: " Check hadoop version"
+    shell: "hadoop version"
+    register: check_hadoop
+    changed_when: False
+
+  - name: "Installing hadoop"
+    shell: "rpm -ih hadoop-1.2.1-1.x86_64.rpm --force"
+    when: "check_hadoop.rc > 0"
+
+  - name: "Check if folder  already exist or not"
+    stat: 
+     path: "{{ name_folder_name }}"
+    register: check_folder
+
+  - name: "Make directory for datanode"
+    file:
+            path: "{{ name_folder_name }}"
+            state: directory
+    when: not check_folder.stat.exists
+
+  - name: "Configure hdfs-site.xml file"
+    template:
+            src: "hdfs-site.xml"
+            dest: "/etc/hadoop/hdfs-site.xml"
+            
+    
+  - name: "Configure core-site.xml file"
+    template:
+            dest: "/etc/hadoop/core-site.xml"
+            src: "core.xml"
+
+  - name: "jps command"
+    command: "jps"
+    register: jps_check
+
+  - name: "Starting hadoop service"
+    command: "hadoop-daemon.sh start namenode"
+    when: not jps_check.stdout_lines[1]
+  
+  - debug:
+        var: jps_check.stdout_lines
+
+            
